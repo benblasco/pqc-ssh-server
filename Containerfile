@@ -10,7 +10,10 @@ ARG SSH_GID=1000
 
 RUN <<EOF
 set -euo pipefail
-microdnf -y install \
+microdnf -y \
+    --setopt=install_weak_deps=0 \
+    --setopt=tsflags=nodocs \
+    install \
     openssh-server
 ln -sf /usr/share/crypto-policies/FUTURE/opensshserver.txt \
     /etc/crypto-policies/back-ends/opensshserver.config
@@ -21,6 +24,7 @@ if ! getent passwd sshuser >/dev/null; then
     useradd -m -u ${SSH_UID} -g ${SSH_GID} -s /bin/sh -d /home/sshuser sshuser
 fi
 install -d -m 700 -o ${SSH_UID} -g ${SSH_GID} /home/sshuser/.ssh
+rm -rf /usr/share/doc /usr/share/info
 microdnf clean all
 rm -rf /var/cache/yum /var/cache/dnf /var/lib/dnf /tmp/*
 EOF

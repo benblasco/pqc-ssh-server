@@ -43,6 +43,10 @@ ssh -p 22222 sshuser@localhost
 
 Mounting `/var/lib/sshd` persists the **server host** key. The **client public** key is bind-mounted read-only into `sshuser`’s `authorized_keys`. The numeric UID/GID of `sshuser` in the image must match the owner of that file on the host (hence `SSH_UID` / `SSH_GID` at build time).
 
+## Image size
+
+The `Containerfile` installs `openssh-server` with **`install_weak_deps=0`** and **`tsflags=nodocs`**, so weak recommendations (extra systemd units, D-Bus, `cracklib-dicts`, and similar) are not pulled in. Remaining `/usr/share/doc` and `/usr/share/info` trees are removed after install. Hard dependencies required for `sshd`, PAM, and crypto-policy stay installed.
+
 ## Intrusion blocking (fail2ban / sshguard)
 
 This image **does not** ship **fail2ban** or **sshguard**. Public-key-only login already removes password brute force; either tool would mainly react to **failed key attempts**, invalid users, and scanner noise by **banning source IPs** (usually via nftables/iptables inside the container, often requiring **`--cap-add=NET_ADMIN`** on Podman and an auth log source such as **rsyslog** writing to `/var/log/secure`).
