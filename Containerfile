@@ -11,8 +11,7 @@ ARG SSH_GID=1000
 RUN <<EOF
 set -euo pipefail
 microdnf -y install \
-    openssh-server \
-    fail2ban
+    openssh-server
 ln -sf /usr/share/crypto-policies/FUTURE/opensshserver.txt \
     /etc/crypto-policies/back-ends/opensshserver.config
 if ! getent group sshuser >/dev/null; then
