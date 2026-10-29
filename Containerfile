@@ -4,7 +4,7 @@ FROM quay.io/fedora/fedora-minimal:latest
 #   podman run -d -p 22222:22 --name pqc-ssh-server IMAGE
 EXPOSE 22
 
-# Match the UID/GID of the host user who owns the bind-mounted authorized_keys file.
+# Match the UID/GID used when chowning authorized_keys in the pqc-ssh-authorized-keys volume (see README).
 ARG SSH_UID=1000
 ARG SSH_GID=1000
 

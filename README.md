@@ -16,7 +16,7 @@ Generate an Ed25519 key pair on the client (skip if you already have one):
 ssh-keygen -t ed25519 -f "${HOME}/.ssh/id_ed25519" -C "$(whoami)@$(hostname -f)"
 ```
 
-Place your **Ed25519 public** key in a host file (mode `600` or `644`, owned by your user):
+Keep a copy of your **Ed25519 public** key on the host (used when loading the volume below):
 
 ```bash
 install -d -m 700 "${HOME}/.config/pqc-ssh-server"
@@ -24,24 +24,72 @@ cp "${HOME}/.ssh/id_ed25519.pub" "${HOME}/.config/pqc-ssh-server/authorized_keys
 chmod 600 "${HOME}/.config/pqc-ssh-server/authorized_keys"
 ```
 
-Rootless Podman (default user namespace mapping; do **not** use `--userns=keep-id` for this image):
+### Volumes
+
+Create two named volumes:
+
+- **`pqc-ssh-hostkeys`** — persists the **server host** Ed25519 key under `/var/lib/sshd`.
+- **`pqc-ssh-authorized-keys`** — holds `sshuser`’s **`authorized_keys`** (must be owned **`sshuser:sshuser`** inside the container, mode **`600`**).
 
 ```bash
 podman volume create pqc-ssh-hostkeys
-podman run -d -p 22222:22 \
+podman volume create pqc-ssh-authorized-keys
+```
+
+Load (or update) the client public key into the authorized-keys volume. Use **`--entrypoint sh`** so the image entrypoint does not start `sshd`. Pipe the key in stdin so you do not bind-mount the host file (rootless Podman often blocks that read inside the init container):
+
+```bash
+cat "${HOME}/.config/pqc-ssh-server/authorized_keys" | podman run -i --rm --entrypoint sh \
+  -v pqc-ssh-authorized-keys:/home/sshuser/.ssh \
+  pqc-ssh-server \
+  -c 'cat > /home/sshuser/.ssh/authorized_keys \
+      && chown '"$(id -u)"':'"$(id -g)"' /home/sshuser/.ssh/authorized_keys \
+      && chmod 700 /home/sshuser/.ssh \
+      && chmod 600 /home/sshuser/.ssh/authorized_keys'
+```
+
+Use the same **`SSH_UID` / `SSH_GID`** you passed at build time in the `chown` ( **`$(id -u)` / `$(id -g)`** when you built as your login user).
+
+### Start the container (rootless Podman)
+
+Default user namespace mapping only — do **not** use **`--userns=keep-id`** or **`--user`** for this image (see [Rootless Podman notes](#rootless-podman-notes)).
+
+```bash
+podman run -d --rm --replace \
+  -p 22222:22 \
   -v pqc-ssh-hostkeys:/var/lib/sshd:Z \
-  -v "${HOME}/.config/pqc-ssh-server/authorized_keys:/home/sshuser/.ssh/authorized_keys:ro,Z" \
+  -v pqc-ssh-authorized-keys:/home/sshuser/.ssh:ro,Z \
   --name pqc-ssh-server \
   pqc-ssh-server
 ```
 
-Connect:
+**`--replace`** recreates the container if that name is already in use (including while it is still running). **`--rm`** removes the container when it exits so stopped instances do not accumulate.
+
+Connect (from the host or another machine; open **TCP 22222** on the host firewall if needed):
 
 ```bash
-ssh -p 22222 sshuser@localhost
+ssh -p 22222 -i "${HOME}/.ssh/id_ed25519" sshuser@localhost
+# ssh -p 22222 -i "${HOME}/.ssh/id_ed25519" sshuser@nuc.lan
 ```
 
-Mounting `/var/lib/sshd` persists the **server host** key. The **client public** key is bind-mounted read-only into `sshuser`’s `authorized_keys`. The numeric UID/GID of `sshuser` in the image must match the owner of that file on the host (hence `SSH_UID` / `SSH_GID` at build time).
+After changing keys in the volume, restart the container: `podman restart pqc-ssh-server`.
+
+### Rootless Podman notes
+
+**Why a named volume for client keys?** With default rootless mapping, bind-mounting a host `authorized_keys` file into `/home/sshuser/.ssh/authorized_keys` often appears as **`root:root` mode `600`** inside the container. OpenSSH opens that file as **`sshuser`** with **`StrictModes yes`**, so login fails with **`Permission denied (publickey)`** even when the key content is correct. A named volume populated with **`chown`** to **`sshuser`** avoids that.
+
+**Do not use `--userns=keep-id` or `--user 1000:1000`.** `sshd` must run as **root** in the container (read **`/etc/ssh/sshd_config`**, bind port 22, manage host keys). Keep-id runs the process as your host UID; the container then exits with **`/etc/ssh/sshd_config: Permission denied`** and nothing listens on the published port.
+
+**Build-time UID/GID** still matters: **`sshuser`** in the image must match the numeric owner you use when **`chown`**ing `authorized_keys` in the volume.
+
+**Verify on the host before testing SSH:**
+
+```bash
+podman ps --filter name=pqc-ssh-server
+podman exec -u sshuser pqc-ssh-server test -r /home/sshuser/.ssh/authorized_keys && echo OK
+ss -tlnp | grep 22222
+getenforce
+```
 
 ## Image size
 
