@@ -1,6 +1,10 @@
 # pqc-ssh-server
 Post-quantum capable SSH server container
 
+## CI (Forgejo Actions)
+
+Build and push to `micro.lan:5000` and `nuc.lan:5000` via [`.forgejo/workflows/container-build.yml`](.forgejo/workflows/container-build.yml). Runner label **`pqc-ssh-server`** and one-time setup in [podman-container-yaml](https://github.com/benblasco/podman-container-yaml) are documented in [README.forgejo-actions.md](README.forgejo-actions.md). Signal notifications: [README.forgejo-notification.md](README.forgejo-notification.md).
+
 ## Run
 
 Build (default `sshuser` UID/GID **1000**; override if your login user is different):
