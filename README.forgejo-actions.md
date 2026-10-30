@@ -2,6 +2,18 @@
 
 Continuous integration for the container image via [`.forgejo/workflows/container-build.yml`](.forgejo/workflows/container-build.yml). Modeled on [fedora-server-bootc](https://github.com/benblasco/fedora-server-bootc) Forgejo workflow.
 
+## Forgejo repository
+
+| Item | Value |
+|------|--------|
+| **Forgejo** | [bblasco/pqc-ssh-server](http://opti.lan:3000/bblasco/pqc-ssh-server) |
+| **Source (mirror)** | [https://github.com/benblasco/pqc-ssh-server](https://github.com/benblasco/pqc-ssh-server) |
+| **Mirror interval** | 8h (same as [fedora-server-bootc](http://opti.lan:3000/bblasco/fedora-server-bootc)) |
+
+This repo on Forgejo is a **read-only pull mirror** of GitHub. Commit on **GitHub `main`**, then either wait for the next mirror pull or run **Sync Mirror** in the Forgejo UI (or `POST /api/v1/repos/bblasco/pqc-ssh-server/mirror-sync`) before Forgejo Actions sees new workflow YAML.
+
+**Actions secrets:** add `SIGNAL_WEBHOOK_URL`, `SIGNAL_NUMBER`, and `SIGNAL_GROUP_ID` under the Forgejo repo (same names and values as [fedora-server-bootc](http://opti.lan:3000/bblasco/fedora-server-bootc) — see [README.forgejo-notification.md](README.forgejo-notification.md)).
+
 ## Runner and job image
 
 Deploy and configure Forgejo Actions runners with [podman-container-yaml](https://github.com/benblasco/podman-container-yaml) (`run-podman-quadlet-forgejo.yml`). This workflow uses:
