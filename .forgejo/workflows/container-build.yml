@@ -93,7 +93,8 @@ jobs:
           SIGNAL_NUMBER: ${{ secrets.SIGNAL_NUMBER }}
           SIGNAL_GROUP_ID: ${{ secrets.SIGNAL_GROUP_ID }}
         run: |
-          msg="FORGEJO ${GITHUB_REPOSITORY} #${GITHUB_RUN_NUMBER}: success | branch=${REPO_BRANCH} | ${IMAGE_NAME}:${REPO_BRANCH} (${DATESTAMP}) | size=${IMAGE_SIZE}"
+          msg="FORGEJO ${GITHUB_REPOSITORY} #${GITHUB_RUN_NUMBER}: success | branch=${REPO_BRANCH}" \
+            " | ${IMAGE_NAME}:${REPO_BRANCH} (${DATESTAMP}) | size=${IMAGE_SIZE}"
           jq -n \
             --arg message "$msg" \
             --arg number "$SIGNAL_NUMBER" \
@@ -111,7 +112,8 @@ jobs:
           SIGNAL_NUMBER: ${{ secrets.SIGNAL_NUMBER }}
           SIGNAL_GROUP_ID: ${{ secrets.SIGNAL_GROUP_ID }}
         run: |
-          msg="FORGEJO ${GITHUB_REPOSITORY} #${GITHUB_RUN_NUMBER}: failure | branch=${REPO_BRANCH} | ${IMAGE_NAME}:${REPO_BRANCH}"
+          msg="FORGEJO ${GITHUB_REPOSITORY} #${GITHUB_RUN_NUMBER}: failure | branch=${REPO_BRANCH}" \
+            " | ${IMAGE_NAME}:${REPO_BRANCH}"
           jq -n \
             --arg message "$msg" \
             --arg number "$SIGNAL_NUMBER" \

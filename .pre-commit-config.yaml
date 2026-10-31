@@ -41,10 +41,12 @@ repos:
     hooks:
       - id: actionlint
         files: ^\.forgejo/workflows/.*\.ya?ml$
+        args: [-config-file=.github/actionlint.yaml]
 
-  - repo: https://github.com/hadolint/hadolint
-    rev: v2.13.1
+  - repo: local
     hooks:
       - id: hadolint
+        name: hadolint (podman)
+        entry: .pre-commit/run-hadolint.sh
+        language: script
         files: ^Containerfile$
-        args: [--ignore, DL3007]
