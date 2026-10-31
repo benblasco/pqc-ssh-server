@@ -1,6 +1,21 @@
 # pqc-ssh-server
 Post-quantum capable SSH server container
 
+## Development
+
+Git commits run [pre-commit](https://pre-commit.com/) hooks (YAML, Forgejo Actions via actionlint, Containerfile via hadolint, gitleaks, shellcheck, markdown). **No `dnf install`** — tools use `pip install --user` and pre-commit’s cache under `~/.cache/pre-commit/`.
+
+```bash
+python3 -m pip install --user -r requirements-dev.txt
+export PATH="$HOME/.local/bin:$PATH"   # add to shell profile if needed
+pre-commit install
+pre-commit run --all-files             # first-time / CI-style check
+```
+
+Verify: `pre-commit --version`, `command -v pre-commit`.
+
+Lint config: [`.yamllint.yml`](.yamllint.yml) (120 columns, comment spacing), [`.markdownlint-cli2.yaml`](.markdownlint-cli2.yaml) (MD013 on prose, 120 columns). **MD031** / **MD040** require blank lines around fenced blocks and a language tag on each fence. Hadolint ignores **DL3007** (rolling `fedora-minimal:latest` base).
+
 ## CI (Forgejo Actions)
 
 Build and push to `micro.lan:5000` and `nuc.lan:5000` via [`.forgejo/workflows/container-build.yml`](.forgejo/workflows/container-build.yml). Runner label **`pqc-ssh-server`** and one-time setup in [podman-container-yaml](https://github.com/benblasco/podman-container-yaml) are documented in [README.forgejo-actions.md](README.forgejo-actions.md). Signal notifications: [README.forgejo-notification.md](README.forgejo-notification.md).
