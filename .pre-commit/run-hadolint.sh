@@ -2,7 +2,7 @@
 # Run hadolint via Podman (no docker daemon / no dnf hadolint package).
 set -euo pipefail
 
-readonly IMAGE="${HADOLINT_IMAGE:-ghcr.io/hadolint/hadolint:latest}"
+readonly IMAGE="${HADOLINT_IMAGE:-ghcr.io/hadolint/hadolint:v2.15.1}"
 for file in "$@"; do
   podman run --rm -i \
     -v "${PWD}/${file}:/Containerfile:ro,Z" \

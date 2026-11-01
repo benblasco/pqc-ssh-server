@@ -156,6 +156,20 @@ allowlists) matter more than in-container jails. Consider adding one of these to
 **internet-facing** and you want automatic throttling of repeated failures; skip them if SSH is **LAN/VPN-only** and
 you prefer a minimal image.
 
+## Dependency updates (Renovate)
+
+Dependency bumps are handled on **GitHub**, not Forgejo. This repository’s **source of truth is GitHub** (`main`);
+Forgejo is a **read-only pull mirror** used to run homelab **build** Actions only (see
+[README.forgejo-actions.md](README.forgejo-actions.md)). Renovate does not support running against Forgejo **pull
+mirror** repositories, so the bot is wired on GitHub instead.
+
+| File | Role |
+|------|------|
+| [`.github/workflows/renovate.yml`](.github/workflows/renovate.yml) | Scheduled GitHub Actions workflow (GitHub-hosted `ubuntu-latest`) that runs Renovate with the `RENOVATE_TOKEN` secret. |
+| [`.github/renovate.json`](.github/renovate.json) | Renovate config: dev Python deps, pre-commit hook tags, `Containerfile` base image, Hadolint image in [`.pre-commit/run-hadolint.sh`](.pre-commit/run-hadolint.sh), and action pins in [`.forgejo/workflows/container-build.yml`](.forgejo/workflows/container-build.yml). |
+
+Merge Renovate PRs on GitHub; the Forgejo mirror picks up the changes on the next sync.
+
 ## References
 
 - [SSH Post-Quantum Cryptography Configuration Guide](https://gist.github.com/michabbb/5eb580d60ede01dc7d1e5abc72d7eb40)

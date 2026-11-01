@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "dockerfile": {
+    "fileMatch": ["(^|/|\\.)Containerfile$", "(^|/)Containerfile[^/]*$"]
+  },
+  "github-actions": {
+    "fileMatch": [
+      "\\.forgejo/workflows/.+\\.ya?ml$",
+      "\\.github/workflows/.+\\.ya?ml$"
+    ]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Hadolint Podman image default in pre-commit script",
+      "fileMatch": ["^\\.pre-commit/run-hadolint\\.sh$"],
+      "matchStrings": [
+        "HADOLINT_IMAGE:-(?<depName>ghcr\\.io/hadolint/hadolint):(?<currentValue>v?[0-9.]+)"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Forgejo runner v6 supports checkout node20 only (README.forgejo-actions.md)",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["actions/checkout"],
+      "allowedVersions": "<5"
+    },
+    {
+      "description": "yamllint: pre-commit rev is canonical",
+      "matchManagers": ["pip_requirements"],
+      "matchPackageNames": ["yamllint"],
+      "enabled": false
+    }
+  ]
+}
