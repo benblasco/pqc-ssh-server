@@ -188,11 +188,19 @@ update pull requests. Store the PAT only as the repository secret; never commit 
 
    ![PAT repository access: pqc-ssh-server only](docs/images/renovate/02-fine-grained-pat-repository-access.png)
 
-3. **Repository permissions** — Click **Add permissions** and grant at least what [Renovate documents for
-   fine-grained tokens](https://docs.renovatebot.com/modules/platform/github/): **Contents**, **Pull requests**, and
-   **Workflows** (read and write); **Commit statuses**, **Issues**, and **Dependabot alerts** (read-only where that
-   is the only read option). Metadata is included automatically. This repo’s config bumps files under
-   **`.github/`** and **`.forgejo/`**, so **Workflows** write access is required.
+3. **Repository permissions** — Under **Repository permissions**, grant the access [Renovate documents for fine-grained tokens](https://docs.renovatebot.com/modules/platform/github/). Leave **User permissions** empty. GitHub labels **Contents** as “code” in the UI.
+
+   | Permission (GitHub UI) | Access | Used for |
+   | --- | --- | --- |
+   | **Contents** (code) | Read and write | Branches and commits for update PRs |
+   | **Pull requests** | Read and write | Open and update Renovate PRs |
+   | **Issues** | Read and write | Dependency dashboard issue (`config:recommended`) |
+   | **Workflows** | Read and write | Action pin bumps in `.github/workflows/` and `.forgejo/workflows/` |
+   | **Commit statuses** | Read and write | Status checks on Renovate branches when enabled |
+   | **Dependabot alerts** | Read-only | Security context for dependency updates |
+   | **Metadata** | Read-only (automatic) | Repository discovery and API metadata |
+
+   ![Fine-grained PAT repository permissions for Renovate](docs/images/renovate/04-fine-grained-pat-repository-permissions.png)
 
 4. **Generate the token** — Copy the PAT once; GitHub will not show it again.
 
@@ -204,7 +212,7 @@ update pull requests. Store the PAT only as the repository secret; never commit 
 6. **Verify** — **Actions → Renovate → Run workflow** (workflow_dispatch). A successful run confirms the secret and
    PAT permissions.
 
-Verification (local): `test -f docs/images/renovate/03-actions-secret-renovate-token.png && echo OK`
+Verification (local): `test -f docs/images/renovate/04-fine-grained-pat-repository-permissions.png && echo OK`
 
 ## References
 
