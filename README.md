@@ -170,6 +170,44 @@ mirror** repositories, so the bot is wired on GitHub instead.
 
 Merge Renovate PRs on GitHub; the Forgejo mirror picks up the changes on the next sync.
 
+### One-time setup: fine-grained PAT and `RENOVATE_TOKEN`
+
+The scheduled workflow in [`.github/workflows/renovate.yml`](.github/workflows/renovate.yml) reads
+**`secrets.RENOVATE_TOKEN`**. That value must be a GitHub fine-grained personal access token (PAT); see [Managing
+personal access tokens][github-pat-docs] (**Fine-grained tokens**). Renovate needs repository access to open and
+update pull requests. Store the PAT only as the repository secret; never commit it.
+
+1. **Create the PAT** — GitHub **Settings → Developer settings → Personal access tokens → Fine-grained tokens →
+   Generate new token**. Pick a clear token name, optional description, resource owner, and expiration (GitHub
+   recommends an expiry; “No expiration” is shown below for a homelab token you rotate manually).
+
+   ![Fine-grained PAT form: name, description, owner, expiration](docs/images/renovate/01-fine-grained-pat-details.png)
+
+2. **Scope repositories** — Under **Repository access**, choose **Only select repositories** and add
+   **`benblasco/pqc-ssh-server`** (add other repos to the same token if one Renovate run should manage them).
+
+   ![PAT repository access: pqc-ssh-server only](docs/images/renovate/02-fine-grained-pat-repository-access.png)
+
+3. **Repository permissions** — Click **Add permissions** and grant at least what [Renovate documents for
+   fine-grained tokens](https://docs.renovatebot.com/modules/platform/github/): **Contents**, **Pull requests**, and
+   **Workflows** (read and write); **Commit statuses**, **Issues**, and **Dependabot alerts** (read-only where that
+   is the only read option). Metadata is included automatically. This repo’s config bumps files under
+   **`.github/`** and **`.forgejo/`**, so **Workflows** write access is required.
+
+4. **Generate the token** — Copy the PAT once; GitHub will not show it again.
+
+5. **Add the Actions secret** — In the repo on GitHub: **Settings → Secrets and variables → Actions → New repository
+   secret**. Name **`RENOVATE_TOKEN`**, paste the PAT, then **Add secret**.
+
+   ![Actions secret named RENOVATE_TOKEN](docs/images/renovate/03-actions-secret-renovate-token.png)
+
+6. **Verify** — **Actions → Renovate → Run workflow** (workflow_dispatch). A successful run confirms the secret and
+   PAT permissions.
+
+Verification (local): `test -f docs/images/renovate/03-actions-secret-renovate-token.png && echo OK`
+
 ## References
+
+[github-pat-docs]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
 
 - [SSH Post-Quantum Cryptography Configuration Guide](https://gist.github.com/michabbb/5eb580d60ede01dc7d1e5abc72d7eb40)
