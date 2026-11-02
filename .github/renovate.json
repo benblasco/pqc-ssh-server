@@ -1,20 +1,24 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base"],
+  "extends": ["config:recommended"],
+  "gitAuthor": "Ben Blasco <bblasco@redhat.com>",
   "dockerfile": {
-    "fileMatch": ["(^|/|\\.)Containerfile$", "(^|/)Containerfile[^/]*$"]
+    "managerFilePatterns": [
+      "/(^|/|\\.)Containerfile$/",
+      "/(^|/)Containerfile[^/]*$/"
+    ]
   },
   "github-actions": {
-    "fileMatch": [
-      "\\.forgejo/workflows/.+\\.ya?ml$",
-      "\\.github/workflows/.+\\.ya?ml$"
+    "managerFilePatterns": [
+      "/\\.forgejo/workflows/.+\\.ya?ml$/",
+      "/\\.github/workflows/.+\\.ya?ml$/"
     ]
   },
   "customManagers": [
     {
       "customType": "regex",
       "description": "Hadolint Podman image default in pre-commit script",
-      "fileMatch": ["^\\.pre-commit/run-hadolint\\.sh$"],
+      "managerFilePatterns": ["/^\\.pre-commit/run-hadolint\\.sh$/"],
       "matchStrings": [
         "HADOLINT_IMAGE:-(?<depName>ghcr\\.io/hadolint/hadolint):(?<currentValue>v?[0-9.]+)"
       ],
