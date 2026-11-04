@@ -165,7 +165,7 @@ mirror** repositories, so the bot is wired on GitHub instead.
 
 | File | Role |
 |------|------|
-| [`.github/workflows/renovate.yml`](.github/workflows/renovate.yml) | Scheduled GitHub Actions workflow (GitHub-hosted `ubuntu-latest`) that runs Renovate with the `RENOVATE_TOKEN` secret. |
+| [`.github/workflows/renovate.yml`](.github/workflows/renovate.yml) | Scheduled GitHub Actions workflow (GitHub-hosted `ubuntu-latest`, **24h before** the Forgejo container build) that runs Renovate with the `RENOVATE_TOKEN` secret. |
 | [`.github/renovate.json`](.github/renovate.json) | Renovate config: dev Python deps, pre-commit hook tags, `Containerfile` base image, Hadolint image in [`.pre-commit/run-hadolint.sh`](.pre-commit/run-hadolint.sh), and action pins in [`.forgejo/workflows/container-build.yml`](.forgejo/workflows/container-build.yml). |
 
 Merge Renovate PRs on GitHub; the Forgejo mirror picks up the changes on the next sync.

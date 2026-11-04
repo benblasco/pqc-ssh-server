@@ -3,7 +3,8 @@ name: Renovate
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"
+    # Tue 19:15 UTC ≈ Wed 06:15 AEDT — 24h before Forgejo build (Wed 19:15 UTC in container-build.yml).
+    - cron: "15 19 * * 2"
 
 jobs:
   renovate:
