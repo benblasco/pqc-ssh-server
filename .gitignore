@@ -1,0 +1,2 @@
+# chunkah writes OCI layout here during multi-stage podman build (-v $PWD:/run/src)
+/out/
