@@ -18,7 +18,8 @@ wait for the next mirror pull or run **Sync Mirror** in the Forgejo UI (or
 
 **Actions secrets:** add `SIGNAL_WEBHOOK_URL`, `SIGNAL_NUMBER`, and `SIGNAL_GROUP_ID` under the Forgejo repo
 (same names and values as [fedora-server-bootc](http://opti.lan:3000/bblasco/fedora-server-bootc) — see
-[README.forgejo-notification.md](README.forgejo-notification.md)).
+[README.forgejo-notification.md](README.forgejo-notification.md)). You do **not** need Red Hat registry
+username/password secrets for the current build (see [Red Hat registry (Hardened Images)](#red-hat-registry-hardened-images)).
 
 ## Runner and job image
 
@@ -83,6 +84,54 @@ podman-container-yaml.
 Configure the three `SIGNAL_*` repository secrets per [README.forgejo-notification.md](README.forgejo-notification.md)
 (same values as Jenkins / fedora-server-bootc Forgejo).
 
+Homelab registry credentials for `micro.lan:5000` / `nuc.lan:5000` belong on the runner host (`registries.conf`,
+Ansible `podman_registry_*`, and similar in podman-container-yaml), **not** as Forgejo secrets for this workflow.
+
+## Red Hat registry (Hardened Images)
+
+The [Containerfile](Containerfile) pulls `hi/core-runtime`, `hi/core-runtime-builder`, and `hi/chunkah` from
+**`registry.access.redhat.com`**, not **`registry.redhat.io`**. Red Hat documents two product registries ([Container
+Registry Authentication](https://access.redhat.com/articles/RegistryAuthentication)):
+
+| Registry | Authentication |
+| --- | --- |
+| `registry.access.redhat.com` | Unauthenticated pulls supported (what this repo uses) |
+| `registry.redhat.io` | Red Hat login or [registry service account](https://access.redhat.com/articles/3399531) token required |
+
+**Forgejo Actions secrets:** do **not** add your Red Hat Customer Portal username and password for the current
+workflow. No `RH_REGISTRY_*` (or similar) secrets are required while all `FROM` lines stay on
+`registry.access.redhat.com`.
+
+**Workflow `podman login` / `buildah login` step:** **not needed** today. The build step uses
+`redhat-actions/buildah-build@v3` with `extra-args: --pull=always`, which pulls those base images without logging in.
+The earlier **Workaround empty docker config** step writes a minimal `~/.docker/config.json` for the JavaScript
+actions; that does not block unauthenticated pulls from `registry.access.redhat.com`.
+
+Verify on a runner host (or inside the aio image) before relying on CI:
+
+```bash
+buildah pull registry.access.redhat.com/hi/core-runtime:latest
+buildah pull registry.access.redhat.com/hi/chunkah:latest
+getenforce
+```
+
+If both pulls succeed, CI needs no Red Hat login step.
+
+**If you change the Containerfile to `registry.redhat.io`:** add Forgejo repository secrets (prefer a **registry
+service account** token as the password—not your personal portal password), and insert a login step **before**
+`Build image with Buildah`, for example:
+
+```yaml
+      - name: Log in to registry.redhat.io
+        env:
+          RH_REGISTRY_USERNAME: ${{ secrets.RH_REGISTRY_USERNAME }}
+          RH_REGISTRY_PASSWORD: ${{ secrets.RH_REGISTRY_PASSWORD }}
+        run: buildah login -u "$RH_REGISTRY_USERNAME" -p "$RH_REGISTRY_PASSWORD" registry.redhat.io
+```
+
+That is only required for `registry.redhat.io` (or other authenticated registries), not for the current
+`registry.access.redhat.com` Hardened Images paths.
+
 ## Triggers
 
 - **Push:** commits to **`main`**
@@ -118,6 +167,14 @@ Keep **`actions/checkout@v4`** (`node20`) or upgrade forgejo-runner to **>= v9.1
 
 Confirm the **`pqc-ssh-server`** label appears on an online runner in Forgejo and matches
 `forgejo_runner_labels` after the last playbook run.
+
+### Build fails pulling `registry.access.redhat.com/hi/...`
+
+Confirm unauthenticated pull works on the runner (`buildah pull` commands in [Red Hat registry
+(Hardened Images)](#red-hat-registry-hardened-images)). HTTP **401** / **403** on **`registry.redhat.io`** means the
+Containerfile or tooling is hitting the authenticated registry—either switch `FROM` URLs back to
+`registry.access.redhat.com` or add registry service account secrets and a `buildah login` step as documented there.
+Do not store a personal Customer Portal password in Forgejo if a registry token is available.
 
 Workflow YAML must exist on the repository **default branch** for the Actions tab and `workflow_dispatch` to
 list it.

@@ -111,6 +111,64 @@ recommendations (extra systemd units, D-Bus, `cracklib-dicts`, and similar) are 
 `/usr/share/doc` and `/usr/share/info` trees are removed after install. Hard dependencies required for `sshd`, PAM,
 and crypto-policy stay installed.
 
+## Red Hat Hardened Images Build
+
+The final image is based on [Red Hat Hardened Images](https://docs.redhat.com/en/documentation/red_hat_hardened_images/1-latest)
+(`registry.access.redhat.com/hi/core-runtime`). That **runtime** image is intentionally minimal: there is no `dnf`,
+`microdnf`, or shell, so you cannot install RPMs inside the image you ship. This reduces the size and attack surface of the image. Anything that must come from Red Hat packages (`openssh-server`, `crypto-policies`, users, and similar) is installed in a separate **builder** stage into an alternate root (`/target`), then folded into a proper OCI image with **chunkah** before the last Containerfile stage adds SSH drop-ins and `CMD`.
+
+| Stage | Image | Role |
+| --- | --- | --- |
+| `base` | `hi/core-runtime:latest` | Supplies the hardened runtime rootfs to copy into `/target`. |
+| `builder` | `hi/core-runtime:latest-builder` | Runs `dnf install --installroot=/target` (and `chroot` for `sshuser`), then trims docs/cache. |
+| `chunked` | `hi/chunkah:latest` | Splits the flat `/target` tree into content-based OCI layers; writes output under the build context. |
+| Final | `oci:out` | Consumes chunkah’s OCI layout; `COPY` of `etc/ssh/sshd_config.d/` and `sshd -D`. |
+
+`CHUNKAH_CONFIG_STR` (from `podman image inspect` on the base runtime image) tells chunkah to carry over container
+config metadata (env, user, labels, and similar) from the original hardened base.
+
+### `FROM oci:out` (OCI build-context stage)
+
+The chunkah stage runs:
+
+`chunkah build --rootfs /chunkah --output oci:/run/src/out`
+
+That writes an [OCI image layout](https://github.com/opencontainers/image-spec/blob/main/image-layout.md) into
+`out/` at the repository root (see [.gitignore](.gitignore)). **Podman/Buildah only:** the final `FROM oci:out` stage
+resolves that directory **relative to the build context**, so the build context directory must be bind-mounted where
+chunkah writes (`-v "$(pwd):/run/src"` in the Containerfile header). Builds must also pass `--skip-unused-stages=false`
+so the chunkah stage actually runs. This “`FROM oci:` trick” does not work with Docker.
+
+```mermaid
+flowchart LR
+  subgraph base["base (core-runtime)"]
+    R[hi/core-runtime rootfs]
+  end
+  subgraph builder["builder (core-runtime-builder)"]
+    T["/target installroot<br/>dnf + chroot"]
+  end
+  subgraph chunked["chunked (chunkah)"]
+    C["chunkah build → oci:/run/src/out"]
+  end
+  subgraph final["final (oci:out)"]
+    F["COPY sshd_config.d<br/>CMD sshd -D"]
+  end
+  R --> T
+  T --> C
+  C --> O["out/ OCI layout<br/>(build context)"]
+  O --> F
+```
+
+Full procedure (bind mount, `CHUNKAH_CONFIG_STR`, SELinux label on the mount): see the comment block at the top of
+[Containerfile](Containerfile) and Red Hat’s guide [Building custom application images](https://docs.redhat.com/en/documentation/red_hat_hardened_images/1-latest/develop-build_custom_application_images).
+
+Verification after a HI build:
+
+```bash
+podman image inspect pqc-ssh-server --format '{{.Os}}/{{.Architecture}} {{len .RootFS.Layers}} layers'
+test ! -d out || echo 'remove out/ or rely on .gitignore after local builds'
+```
+
 ## Intrusion blocking (fail2ban / sshguard)
 
 This image **does not** ship **fail2ban** or **sshguard**. Public-key-only login already removes password brute
@@ -152,33 +210,32 @@ update pull requests. Store the PAT only as the repository secret; never commit 
 1. **Create the PAT** — GitHub **Settings → Developer settings → Personal access tokens → Fine-grained tokens →
 
    Generate new token**. Pick a clear token name, optional description, resource owner, and expiration (GitHub
-    recommends an expiry; “No expiration” is shown below for a homelab token you rotate manually).
+     recommends an expiry; “No expiration” is shown below for a homelab token you rotate manually).
 
-    ![Fine-grained PAT form: name, description, owner, expiration](docs/images/renovate/01-fine-grained-pat-details.png)
+     ![Fine-grained PAT form: name, description, owner, expiration](docs/images/renovate/01-fine-grained-pat-details.png)
 2. **Scope repositories** — Under **Repository access**, choose **Only select repositories** and add
 
    `benblasco/pqc-ssh-server` (add other repos to the same token if one Renovate run should manage them).
 
-    ![PAT repository access: pqc-ssh-server only](docs/images/renovate/02-fine-grained-pat-repository-access.png)
+     ![PAT repository access: pqc-ssh-server only](docs/images/renovate/02-fine-grained-pat-repository-access.png)
 3. **Repository permissions** — Under **Repository permissions**, grant the access [Renovate documents for fine-grained tokens](https://docs.renovatebot.com/modules/platform/github/). Leave **User permissions** empty. GitHub labels **Contents** as “code” in the UI.
-
    | Permission (GitHub UI) | Access | Used for |
-    | --- | --- | --- |
-    | **Contents** (code) | Read and write | Branches and commits for update PRs |
-    | **Pull requests** | Read and write | Open and update Renovate PRs |
-    | **Issues** | Read and write | Dependency dashboard issue (`config:recommended`) |
-    | **Workflows** | Read and write | Action pin bumps in `.github/workflows/` and `.forgejo/workflows/` |
-    | **Commit statuses** | Read and write | Status checks on Renovate branches when enabled |
-    | **Dependabot alerts** | Read-only | Security context for dependency updates |
-    | **Metadata** | Read-only (automatic) | Repository discovery and API metadata |
+     | --- | --- | --- |
+     | **Contents** (code) | Read and write | Branches and commits for update PRs |
+     | **Pull requests** | Read and write | Open and update Renovate PRs |
+     | **Issues** | Read and write | Dependency dashboard issue (`config:recommended`) |
+     | **Workflows** | Read and write | Action pin bumps in `.github/workflows/` and `.forgejo/workflows/` |
+     | **Commit statuses** | Read and write | Status checks on Renovate branches when enabled |
+     | **Dependabot alerts** | Read-only | Security context for dependency updates |
+     | **Metadata** | Read-only (automatic) | Repository discovery and API metadata |
 
-    ![Fine-grained PAT repository permissions for Renovate](docs/images/renovate/04-fine-grained-pat-repository-permissions.png)
+     ![Fine-grained PAT repository permissions for Renovate](docs/images/renovate/04-fine-grained-pat-repository-permissions.png)
 4. **Generate the token** — Copy the PAT once; GitHub will not show it again.
 5. **Add the Actions secret** — In the repo on GitHub: **Settings → Secrets and variables → Actions → New repository
 
    secret**. Name `RENOVATE_TOKEN`, paste the PAT, then **Add secret**.
 
-    ![Actions secret named RENOVATE_TOKEN](docs/images/renovate/03-actions-secret-renovate-token.png)
+     ![Actions secret named RENOVATE_TOKEN](docs/images/renovate/03-actions-secret-renovate-token.png)
 6. **Verify** — **Actions → Renovate → Run workflow** (workflow_dispatch). A successful run confirms the secret and
 
    PAT permissions.
