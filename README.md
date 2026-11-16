@@ -4,11 +4,18 @@ Post-quantum capable SSH server container
 
 ## Run
 
-Build (default `sshuser` UID/GID **1000**; override if your login user is different):
+Build (default `sshuser` UID/GID **1000**; override if your login user is different). The image uses Red Hat Hardened
+Images with a **chunkah** stage and final `FROM oci:out`; you need the full flags in the [Containerfile](Containerfile)
+header (bind mount, `--skip-unused-stages=false`, `CHUNKAH_CONFIG_STR`), not a minimal one-liner—see
+[Red Hat Hardened Images Build](#red-hat-hardened-images-build) below.
 
 ```bash
-podman build -t pqc-ssh-server -f Containerfile \
-  --build-arg SSH_UID="$(id -u)" --build-arg SSH_GID="$(id -g)" .
+podman login registry.access.redhat.com
+podman build --pull=always --skip-unused-stages=false --security-opt label=disable \
+  -v "$(pwd):/run/src" \
+  --build-arg "CHUNKAH_CONFIG_STR=$(podman image inspect registry.access.redhat.com/hi/core-runtime:latest)" \
+  --build-arg "SSH_UID=$(id -u)" --build-arg "SSH_GID=$(id -g)" \
+  -t pqc-ssh-server -f Containerfile .
 ```
 
 Generate an Ed25519 key pair on the client (skip if you already have one):

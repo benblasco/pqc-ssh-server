@@ -50,15 +50,24 @@ jobs:
           mkdir -p "$HOME/.docker"
           echo "$auth" > "$HOME/.docker/config.json"
 
+      # HI chunkah stage writes oci:/run/src/out; final FROM oci:out needs that under the build context.
+      # See Containerfile header and README.md (Red Hat Hardened Images multi-stage build).
       - name: Build image with Buildah
         id: build-image
-        uses: redhat-actions/buildah-build@v3
-        with:
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ env.REPO_BRANCH }} ${{ env.REPO_BRANCH }}-${{ env.DATESTAMP }}
-          containerfiles: |
-            ./Containerfile
-          extra-args: --pull=always
+        run: |
+          hi_base=registry.access.redhat.com/hi/core-runtime:latest
+          buildah pull "$hi_base"
+          img="${IMAGE_NAME}"
+          buildah bud -f ./Containerfile \
+            --pull=always \
+            --skip-unused-stages=false \
+            --security-opt label=disable \
+            -v "${GITHUB_WORKSPACE}:/run/src:Z" \
+            --build-arg "CHUNKAH_CONFIG_STR=$(buildah inspect --format '{{json .}}' "$hi_base")" \
+            -t "${img}:${REPO_BRANCH}" \
+            -t "${img}:${REPO_BRANCH}-${DATESTAMP}" \
+            "${GITHUB_WORKSPACE}"
+          echo "image=${img}" >> "$GITHUB_OUTPUT"
 
       - name: Push to micro.lan registry
         run: |
@@ -128,6 +137,7 @@ jobs:
           for tag in "${REPO_BRANCH}" "${REPO_BRANCH}-${DATESTAMP}"; do
             buildah rmi -f "${img}:${tag}" 2>/dev/null || true
           done
+          rm -rf "${GITHUB_WORKSPACE}/out"
           buildah prune -af || true
           for path in /var/lib/containers/storage "$HOME/.local/share/containers/storage"; do
             [ -d "$path" ] && df -h "$path" || true

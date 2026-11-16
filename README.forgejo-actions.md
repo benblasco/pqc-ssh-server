@@ -102,10 +102,12 @@ Registry Authentication](https://access.redhat.com/articles/RegistryAuthenticati
 workflow. No `RH_REGISTRY_*` (or similar) secrets are required while all `FROM` lines stay on
 `registry.access.redhat.com`.
 
-**Workflow `podman login` / `buildah login` step:** **not needed** today. The build step uses
-`redhat-actions/buildah-build@v3` with `extra-args: --pull=always`, which pulls those base images without logging in.
-The earlier **Workaround empty docker config** step writes a minimal `~/.docker/config.json` for the JavaScript
-actions; that does not block unauthenticated pulls from `registry.access.redhat.com`.
+**Workflow `podman login` / `buildah login` step:** **not needed** today. The **Build image with Buildah** step runs
+`buildah bud` with `--pull=always`, which pulls those base images without logging in. Hardened Images also require
+`-v "${GITHUB_WORKSPACE}:/run/src:Z"`, `--skip-unused-stages=false`, `--security-opt label=disable`, and
+`CHUNKAH_CONFIG_STR` (see [Troubleshooting](#open-indexjson--from-ociout) and the [Containerfile](Containerfile)
+header). The earlier **Workaround empty docker config** step writes a minimal `~/.docker/config.json` for the
+JavaScript **checkout** action; that does not block unauthenticated pulls from `registry.access.redhat.com`.
 
 Verify on a runner host (or inside the aio image) before relying on CI:
 
@@ -175,6 +177,32 @@ Confirm unauthenticated pull works on the runner (`buildah pull` commands in [Re
 Containerfile or tooling is hitting the authenticated registry—either switch `FROM` URLs back to
 `registry.access.redhat.com` or add registry service account secrets and a `buildah login` step as documented there.
 Do not store a personal Customer Portal password in Forgejo if a registry token is available.
+
+### `open index.json` / `FROM oci:out`
+
+Symptom in the build log:
+
+```text
+[4/4] STEP 1/6: FROM oci:out
+Error: creating build container: open index.json: no such file or directory
+```
+
+The [Containerfile](Containerfile) ends with `FROM oci:out`. That stage reads an OCI image layout in **`out/`** at
+the repository root—the output of the **chunked** (chunkah) stage. Chunkah only writes that tree into the checkout when
+the build context is bind-mounted at `/run/src` during `buildah bud` (same path as in the Containerfile
+`oci:/run/src/out` output).
+
+A plain `buildah bud` or `redhat-actions/buildah-build` with only `--pull=always` is **not** enough. CI must pass at
+least:
+
+- `-v "${GITHUB_WORKSPACE}:/run/src:Z"`
+- `--skip-unused-stages=false` (so the chunkah stage runs)
+- `--security-opt label=disable` on SELinux-enforcing runners
+- `--build-arg CHUNKAH_CONFIG_STR=$(buildah inspect … hi/core-runtime:latest)` (metadata for chunkah)
+
+The workflow [`.forgejo/workflows/container-build.yml`](.forgejo/workflows/container-build.yml) implements this
+explicitly. Locally, use the command block at the top of the [Containerfile](Containerfile) or see [README.md](README.md)
+(Red Hat Hardened Images / `FROM oci:out`).
 
 Workflow YAML must exist on the repository **default branch** for the Actions tab and `workflow_dispatch` to
 list it.
