@@ -4,7 +4,7 @@ name: Build pqc-ssh-server container
 
 on:
   push:
-    branches: 
+    branches:
       - main
       - harden-images
   schedule:
