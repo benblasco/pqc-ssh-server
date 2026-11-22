@@ -188,17 +188,19 @@ Verification (local): `test -f docs/images/renovate/04-fine-grained-pat-reposito
 ## Development
 
 Git commits run [pre-commit](https://pre-commit.com/) hooks (YAML, Forgejo Actions via actionlint, Containerfile
-via hadolint, gitleaks, shellcheck, markdown). **No** `dnf install` — tools use `pip install --user` and
+via hadolint, gitleaks, shellcheck, markdown). Commit messages must follow [Conventional
+Commits](https://www.conventionalcommits.org/) (e.g. `fix: …`, `feat: …`, `chore: …`); [Commitizen](https://commitizen-tools.github.io/commitizen/)
+validates the subject on `git commit`. **No** `dnf install` — tools use `pip install --user` and
 pre-commit’s cache under `~/.cache/pre-commit/`.
 
 ```bash
-python2 -m pip install --user -r requirements-dev.txt
+python3 -m pip install --user -r requirements-dev.txt
 export PATH="$HOME/.local/bin:$PATH"   # add to shell profile if needed
-pre-commit install
+pre-commit install -t pre-commit -t commit-msg
 pre-commit run --all-files             # first-time / CI-style check
 ```
 
-Verify: `pre-commit --version`, `command -v pre-commit`.
+Verify: `pre-commit --version`, `command -v pre-commit`, `test -x .git/hooks/commit-msg`.
 
 Lint config: [`.yamllint.yml`](.yamllint.yml) (119 columns, comment spacing),
 [`.markdownlint-cli2.yaml`](.markdownlint-cli2.yaml). **MD031** / **MD040** require
