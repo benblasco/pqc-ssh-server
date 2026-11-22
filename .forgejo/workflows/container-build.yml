@@ -4,7 +4,9 @@ name: Build pqc-ssh-server container
 
 on:
   push:
-    branches: [main]
+    branches: 
+      - main
+      - harden-images
   schedule:
     # Wed 19:15 UTC ≈ Thu 06:15 AEDT (bootc uses Sat * * 6). Forgejo cron is UTC only.
     - cron: "15 19 * * 3"
