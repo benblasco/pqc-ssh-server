@@ -6,6 +6,9 @@ rules:
   document-start: disable
   line-length:
     max: 120
+    # Long run: blocks in Forgejo workflow; actionlint still lints the file.
+    ignore: |
+      .forgejo/workflows/container-build.yml
   comments:
     min-spaces-from-content: 1
   comments-indentation: disable
